@@ -6,17 +6,22 @@ import (
 	"os"
 
 	"gioui.org/app"
-	"gioui.org/io/event"
 	"gioui.org/io/pointer"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 )
 
-var windowInputTag = false
-var polygonBuilder PolygonBuilder
+var brushColor = color.NRGBA{R: 255, A: 255}
+var backgroundColor = color.NRGBA{A:255}
+var polygonBuilder *PolygonBuilder
+var lineWidth = 4
+var polygons []*Polygon
+var selectedPolygon *Polygon
+var eventsStoppedInFrame = false
 
 func main() {
     go func() {
@@ -35,7 +40,7 @@ func main() {
 
 func run(w *app.Window) error {
     var ops op.Ops
-    polygonBuilder = PolygonBuilder{active: false}
+    polygonBuilder = &PolygonBuilder{Color: brushColor}
     for {
         e := <-w.Events()
         switch e := e.(type) {
@@ -44,36 +49,76 @@ func run(w *app.Window) error {
         case system.FrameEvent:
             gtx := layout.NewContext(&ops, e)
 
-            drawBackground(&ops)
-            handleFrameEvents(&ops, e.Queue)
+            handleFrameEvents(&gtx)
 
             e.Frame(gtx.Ops)
+            eventsStoppedInFrame = false
         }
+    }
+
+}
+
+func handleFrameEvents(gtx *layout.Context) {
+    drawBackground(gtx.Ops)
+    handleSelectPolygonEvent(gtx)
+    for _, polygon := range polygons {
+        polygon.HandleEvents(gtx)
+    }
+    polygonBuilder.HandleEvents(gtx)
+    polygonBuilder.Layout(gtx)
+    polygonBuilder.RegisterEvents(gtx)
+    registerSelectPolygonEvent(gtx)
+    drawPolygons(gtx)
+
+    if selectedPolygon != nil {
+        hoverSelectedPolygon(gtx)
     }
 }
 
 func drawBackground(ops *op.Ops) {
-    backgroundColor := color.NRGBA{R: 0, G: 0, B: 0, A: 255}
     paint.ColorOp{Color: backgroundColor}.Add(ops)
     paint.PaintOp{}.Add(ops)
 }
 
-func handleFrameEvents(ops *op.Ops, q event.Queue) {
-    for _, ev := range q.Events(&windowInputTag) {
-        if x, ok := ev.(pointer.Event); ok {
-            switch x.Type {
-            case pointer.Press:
-                polygonBuilder.AddVertex(x.Position)
-            case pointer.Move:
-                polygonBuilder.SetTailEnd(x.Position)
+func drawPolygons(gtx *layout.Context) {
+    for _, polygon := range polygons {
+        polygon.Layout(gtx)
+        polygon.RegisterEvents(gtx)
+    }
+}
+
+func StopEventsBelow() {
+    eventsStoppedInFrame = true 
+}
+
+func handleSelectPolygonEvent(gtx *layout.Context) {
+    for _, polygon := range polygons {
+        for _, e := range gtx.Events(polygon) {
+            if x, ok := e.(pointer.Event); ok {
+                switch x.Type {
+                case pointer.Press:
+                    selectedPolygon = polygon
+                    StopEventsBelow()
+                }
             }
         }
     }
+}
 
-    polygonBuilder.Layout(ops)
+func registerSelectPolygonEvent(gtx *layout.Context) {
+    var area clip.Stack
+    for _, polygon := range polygons {
+        path := getPathFromVertices(polygon.Vertices, gtx.Ops, color.NRGBA{})
+        path.Close()
+        area = clip.Outline{Path: path.End()}.Op().Push(gtx.Ops)
+        pointer.InputOp{
+            Tag: polygon,
+            Types: pointer.Press,
+        }.Add(gtx.Ops)
+        area.Pop()
+    }
+}
 
-    pointer.InputOp{
-        Tag:   &windowInputTag,
-        Types: pointer.Press | pointer.Release | pointer.Move,
-    }.Add(ops)
+func hoverSelectedPolygon(gtx *layout.Context) {
+    drawPolygonFromVertices(selectedPolygon.Vertices, gtx.Ops, &color.NRGBA{R: 255, G: 252, B: 127})
 }
