@@ -6,28 +6,34 @@ import (
 	"os"
 
 	"gioui.org/app"
+	"gioui.org/f32"
+	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/unit"
 )
 
 var brushColor = color.NRGBA{R: 255, A: 255}
 var backgroundColor = color.NRGBA{A:255}
-var polygonBuilder *PolygonBuilder
 var lineWidth = 4
-var polygons []*Polygon
-var selectedPolygon *Polygon
 var eventsStoppedInFrame = false
+
+var polygonBuilder *PolygonBuilder
+var polygons []*Polygon
+var globalEventTag bool
+
+var selected Selectable
+var selectedDragId pointer.ID
+var selectedDragPosition f32.Point
+var selectedEdge *PolygonEdge
 
 func main() {
     go func() {
         w := app.NewWindow(
             app.Title("Hexitor"),
-            app.Size(unit.Dp(500), unit.Dp(500)),
+            app.Fullscreen.Option(),
         )
         err := run(w)
         if err != nil {
@@ -60,19 +66,17 @@ func run(w *app.Window) error {
 
 func handleFrameEvents(gtx *layout.Context) {
     drawBackground(gtx.Ops)
-    handleSelectPolygonEvent(gtx)
-    for _, polygon := range polygons {
-        polygon.HandleEvents(gtx)
-    }
     polygonBuilder.HandleEvents(gtx)
-    polygonBuilder.Layout(gtx)
-    polygonBuilder.RegisterEvents(gtx)
-    registerSelectPolygonEvent(gtx)
-    drawPolygons(gtx)
+    handleGlobalEvents(gtx)
 
-    if selectedPolygon != nil {
-        hoverSelectedPolygon(gtx)
+    polygonBuilder.Layout(gtx)
+    registerGlobalEvents(gtx)
+    drawPolygons(gtx)
+    if selected != nil {
+        selected.HighLight(gtx)
     }
+
+    polygonBuilder.RegisterEvents(gtx)
 }
 
 func drawBackground(ops *op.Ops) {
@@ -83,7 +87,6 @@ func drawBackground(ops *op.Ops) {
 func drawPolygons(gtx *layout.Context) {
     for _, polygon := range polygons {
         polygon.Layout(gtx)
-        polygon.RegisterEvents(gtx)
     }
 }
 
@@ -91,13 +94,100 @@ func StopEventsBelow() {
     eventsStoppedInFrame = true 
 }
 
-func handleSelectPolygonEvent(gtx *layout.Context) {
-    for _, polygon := range polygons {
-        for _, e := range gtx.Events(polygon) {
-            if x, ok := e.(pointer.Event); ok {
-                switch x.Type {
-                case pointer.Press:
-                    selectedPolygon = polygon
+func handleGlobalEvents(gtx *layout.Context) {
+    for _, e := range gtx.Events(&globalEventTag) {
+        if x, ok := e.(key.Event); ok {
+            if x.State != key.Press {
+                break
+            }
+
+            switch x.Name {
+            case "A":
+                if selectedEdge != nil {
+                    e := selectedEdge.getEdge().GetMiddlePoint()
+                    index := selectedEdge.EdgeIndex + 1
+                    polygon := selectedEdge.Polygon
+                    polygon.Vertices = append(polygon.Vertices[:index+1], polygon.Vertices[index:]...)
+                    polygon.Vertices[index] = &Vertex{Point: e}
+                    polygon.CreateEdges()
+                    selected = nil
+                    selectedEdge = nil
+                }
+            case "C":
+                if selectedEdge != nil {
+                   selectedEdge.getEdge().SetConstraint(None) 
+                }
+            case "D":
+                if selected != nil {
+                    selected.Destroy()
+                    selected = nil
+                    StopEventsBelow()
+                }
+            case "N":
+                polygonBuilder.Active = true
+            case "H":
+                if selectedEdge != nil {
+                    selectedEdge.getEdge().SetConstraint(Horizontal)
+                }
+            case "V":
+                if selectedEdge != nil {
+                    selectedEdge.getEdge().SetConstraint(Vertical)
+                }
+            }
+        }
+        if x, ok := e.(pointer.Event); ok {
+            // handle PolygonBuilder global Events
+            polygonBuilder.handleAddVertexEvent(&x)
+
+            if eventsStoppedInFrame {
+                break
+            }
+
+            // handle Events of selected object
+            switch x.Type {
+            case pointer.Press:
+                selected = nil
+                selectedEdge = nil
+                for _, polygon := range polygons {
+                    // Handle vertex click
+                    for i, vertex := range polygon.Vertices {
+                        if vertex.IsClicked(x.Position) {
+                            selected = &PolygonVertex{Polygon: polygon, VertexIndex: i}
+                            selectedDragPosition = x.Position
+                            selectedDragId = x.PointerID
+                            StopEventsBelow()
+                            return
+                        }
+                    }
+
+                    // Handle edge click
+                    for i, edge := range polygon.Edges {
+                        if edge.IsClicked(&x.Position) {
+                            pe := &PolygonEdge{Polygon: polygon, EdgeIndex: i}
+                            selected = pe
+                            selectedEdge = pe
+                            selectedDragPosition = x.Position
+                            selectedDragId = x.PointerID
+                            StopEventsBelow()
+                            return
+                        }
+                    }
+
+                    // Handle polygon click
+                    if polygon.IsClicked(x.Position) {
+                        selected = polygon
+                        selectedDragPosition = x.Position
+                        selectedDragId = x.PointerID
+                        StopEventsBelow()
+                        return
+                    }
+                }
+            case pointer.Drag:
+                if selected != nil && selectedDragId == x.PointerID {
+                    dp := selectedDragPosition
+                    pos := x.Position
+                    selected.MoveBy(pos.X - dp.X, pos.Y - dp.Y, gtx) 
+                    selectedDragPosition = pos
                     StopEventsBelow()
                 }
             }
@@ -105,20 +195,15 @@ func handleSelectPolygonEvent(gtx *layout.Context) {
     }
 }
 
-func registerSelectPolygonEvent(gtx *layout.Context) {
-    var area clip.Stack
-    for _, polygon := range polygons {
-        path := getPathFromVertices(polygon.Vertices, gtx.Ops, color.NRGBA{})
-        path.Close()
-        area = clip.Outline{Path: path.End()}.Op().Push(gtx.Ops)
-        pointer.InputOp{
-            Tag: polygon,
-            Types: pointer.Press,
-        }.Add(gtx.Ops)
-        area.Pop()
-    }
+func registerGlobalEvents(gtx *layout.Context) {
+    key.InputOp{
+        Tag: &globalEventTag,
+        Keys: "A|C|D|N|H|V",
+    }.Add(gtx.Ops)
+
+    pointer.InputOp{
+        Tag: &globalEventTag,
+        Types: pointer.Press | pointer.Release | pointer.Drag | pointer.Move,
+    }.Add(gtx.Ops)
 }
 
-func hoverSelectedPolygon(gtx *layout.Context) {
-    drawPolygonFromVertices(selectedPolygon.Vertices, gtx.Ops, &color.NRGBA{R: 255, G: 252, B: 127})
-}

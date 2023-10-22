@@ -16,6 +16,7 @@ type PolygonBuilder struct {
     PointerTailEndPosition f32.Point
     vertexAddEventTag bool
     Color color.NRGBA
+    Active bool
 }
 
 func (pb *PolygonBuilder) Layout(gtx *layout.Context) {
@@ -32,23 +33,18 @@ func (pb *PolygonBuilder) HandleEvents(gtx *layout.Context) {
     if len(pb.vertices) > 2 {
         pb.handleClosingVertexEvent(gtx) 
     }
-    pb.handleAddVertexEvent(gtx)
 }
 
-func (pb *PolygonBuilder) handleAddVertexEvent(gtx *layout.Context) {
-    if eventsStoppedInFrame {
+func (pb *PolygonBuilder) handleAddVertexEvent(e *pointer.Event) {
+    if eventsStoppedInFrame || !pb.Active {
         return
     } 
 
-    for _, ev := range gtx.Events(&pb.vertexAddEventTag) {
-        if x, ok := ev.(pointer.Event); ok {
-            switch x.Type {
-            case pointer.Press:
-                polygonBuilder.addVertex(x.Position)
-            case pointer.Move:
-                polygonBuilder.setTailEnd(x.Position)
-            }
-        }
+    switch e.Type {
+    case pointer.Press:
+        polygonBuilder.addVertex(e.Position)
+    case pointer.Move:
+        polygonBuilder.setTailEnd(e.Position)
     }
 }
 
@@ -65,6 +61,7 @@ func (pb *PolygonBuilder) handleClosingVertexEvent(gtx *layout.Context) {
             case pointer.Press:
                 CreatePolygon(pb.vertices, color.NRGBA{R: 255, G: 255, B: 255, A: 255}) 
                 pb.vertices = []*Vertex{}
+                pb.Active = false
                 StopEventsBelow() 
             case pointer.Enter:
                 pb.vertices[0].Hovered = true 
@@ -76,17 +73,13 @@ func (pb *PolygonBuilder) handleClosingVertexEvent(gtx *layout.Context) {
 }
 
 func (pb *PolygonBuilder) RegisterEvents(gtx *layout.Context) {
-    pb.registerAddVertexEvent(gtx)
+    if !pb.Active {
+        return
+    }
+
     if len(pb.vertices) > 2 {
         pb.registerClosingVertexEvent(gtx)
     }
-}
-
-func (pb *PolygonBuilder) registerAddVertexEvent(gtx *layout.Context) {
-    pointer.InputOp{
-        Tag: &pb.vertexAddEventTag,
-        Types: pointer.Press | pointer.Release | pointer.Move,
-    }.Add(gtx.Ops)
 }
 
 func (pb *PolygonBuilder) registerClosingVertexEvent(gtx *layout.Context) {
