@@ -33,7 +33,7 @@ func main() {
     go func() {
         w := app.NewWindow(
             app.Title("Hexitor"),
-            app.Fullscreen.Option(),
+            app.Size(1920, 1080),
         )
         err := run(w)
         if err != nil {
@@ -105,8 +105,8 @@ func handleGlobalEvents(gtx *layout.Context) {
             case "A":
                 if selectedEdge != nil {
                     e := selectedEdge.getEdge().GetMiddlePoint()
-                    index := selectedEdge.EdgeIndex + 1
                     polygon := selectedEdge.Polygon
+                    index := (selectedEdge.EdgeIndex + 1) % len(polygon.Vertices)
                     polygon.Vertices = append(polygon.Vertices[:index+1], polygon.Vertices[index:]...)
                     polygon.Vertices[index] = &Vertex{Point: e}
                     polygon.CreateEdges()

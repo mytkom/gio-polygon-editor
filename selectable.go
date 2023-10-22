@@ -8,7 +8,7 @@ import (
 	"gioui.org/op/paint"
 )
 
-var highLightColor = color.NRGBA{R: 255, G: 252, B: 127, A:128}
+var highLightColor = color.NRGBA{R: 255, G: 32, B: 32, A:180}
 
 type Selectable interface {
     Destroy()
@@ -56,8 +56,8 @@ func (pe *PolygonEdge) Destroy() {
         pe.Polygon.Destroy()
         return
     }
-
-    pe.Polygon.Vertices[pe.EdgeIndex + 1 % len(pe.Polygon.Edges)].Point = pe.getEdge().GetMiddlePoint()
+    endIndex := (pe.EdgeIndex + 1) % len(pe.Polygon.Edges)
+    pe.Polygon.Vertices[endIndex].Point = pe.getEdge().GetMiddlePoint()
     ret = append(ret, pe.Polygon.Vertices[:pe.EdgeIndex]...)
 
     pe.Polygon.Vertices = append(ret, pe.Polygon.Vertices[pe.EdgeIndex + 1:]...)
