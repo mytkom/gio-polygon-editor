@@ -18,30 +18,26 @@ type Selectable interface {
 
 type PolygonVertex struct {
     Polygon *Polygon
-    VertexIndex int
+    Vertex *Vertex
 }
 
 func (pv *PolygonVertex) Destroy() {
-    ret := make([]*Vertex, 0)
-
-    if len(pv.Polygon.Vertices) == 3 {
+    if pv.Polygon.VerticesCount == 3 {
         pv.Polygon.Destroy()
         return
     }
 
-    ret = append(ret, pv.Polygon.Vertices[:pv.VertexIndex]...)
-    pv.Polygon.Vertices = append(ret, pv.Polygon.Vertices[pv.VertexIndex+1:]...)
+    pv.Polygon.DestroyVertex(pv.Vertex)
     pv.Polygon.CreateEdges()
 }
 
 func (pv *PolygonVertex) HighLight(gtx *layout.Context) {
-    v := pv.Polygon.Vertices[pv.VertexIndex]
-    circle := v.GetHoverEllipse().Op(gtx.Ops)
+    circle := pv.Vertex.GetHoverEllipse().Op(gtx.Ops)
     paint.FillShape(gtx.Ops, highLightColor, circle)
 }
 
 func (pv *PolygonVertex) MoveBy(x float32, y float32, gtx *layout.Context) {
-    pv.Polygon.Vertices[pv.VertexIndex].MoveBy(x, y, gtx)
+    pv.Vertex.MoveBy(x, y, gtx)
 }
 
 type PolygonEdge struct {
@@ -50,17 +46,29 @@ type PolygonEdge struct {
 }
 
 func (pe *PolygonEdge) Destroy() {
-    ret := make([]*Vertex, 0)
-
     if len(pe.Polygon.Edges) == 3 {
         pe.Polygon.Destroy()
         return
     }
-    endIndex := (pe.EdgeIndex + 1) % len(pe.Polygon.Edges)
-    pe.Polygon.Vertices[endIndex].Point = pe.getEdge().GetMiddlePoint()
-    ret = append(ret, pe.Polygon.Vertices[:pe.EdgeIndex]...)
 
-    pe.Polygon.Vertices = append(ret, pe.Polygon.Vertices[pe.EdgeIndex + 1:]...)
+    e := pe.getEdge()
+    v := e.Vertices[0]
+    next := v.next
+    prev := v.previous
+    if next == nil {
+        next = pe.Polygon.VerticesHead
+        prev.next = nil
+    } else if prev == nil {
+        pe.Polygon.VerticesHead = next
+        next.previous = nil
+    } else {
+        prev.next = next 
+        next.previous = prev
+    }
+    
+    next.Point = e.GetMiddlePoint()
+    pe.Polygon.VerticesCount -= 1
+
     pe.Polygon.CreateEdges()
 }
 
@@ -102,21 +110,26 @@ func (p *Polygon) Destroy() {
 }
 
 func (p *Polygon) HighLight(gtx *layout.Context) {
-    drawPolygonFromVertices(p.Vertices, gtx.Ops, &highLightColor)
+    drawPolygonFromVertices(p.VerticesHead, gtx.Ops, &highLightColor)
 }
 
 func (p *Polygon) MoveBy(x float32, y float32, gtx *layout.Context) {
-    for _, vertex := range p.Vertices {
+    vertex := p.VerticesHead
+
+    for vertex != nil {
         newX := vertex.Point.X + x
         newY := vertex.Point.Y + y
         if !isPointInWindow(newX, newY, gtx) {
             return
         }
+        vertex = vertex.next
     }
 
-	for _, vertex := range p.Vertices {
+    vertex = p.VerticesHead
+    for vertex != nil {
 		vertex.Point.X += x
 		vertex.Point.Y += y
+        vertex = vertex.next
 	}
 }
 

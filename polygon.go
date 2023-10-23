@@ -11,14 +11,18 @@ import (
 )
 
 type Polygon struct {
-	Vertices []*Vertex
+	VerticesHead *Vertex
+    VerticesTail *Vertex
+    VerticesCount int
 	Color    color.NRGBA
 	Edges    []*Edge
 }
 
-func CreatePolygon(vertices []*Vertex, color color.NRGBA) {
+func CreatePolygon(head *Vertex, tail *Vertex, count int, color color.NRGBA) {
 	polygon := &Polygon{
-		Vertices: vertices,
+        VerticesHead: head,
+        VerticesTail: tail,
+        VerticesCount: count,
 		Color:    color,
 	}
 	polygon.CreateEdges()
@@ -30,38 +34,75 @@ func CreatePolygon(vertices []*Vertex, color color.NRGBA) {
 }
 
 func (p *Polygon) CreateEdges() {
-	edges := make([]*Edge, len(p.Vertices))
-	for i := 0; i < len(p.Vertices); i += 1 {
-		j := (i + 1) % len(p.Vertices)
-		edges[i] = &Edge{Vertices: [2]*Vertex{p.Vertices[i], p.Vertices[j]}}
+	edges := make([]*Edge, p.VerticesCount)
+    var next *Vertex
+    current := p.VerticesHead
+    i := 0
+    for current != nil {
+        next = current.next
+        edges[i] = &Edge{Vertices: [2]*Vertex{current, next}}
+        current = next
+        i++
 	}
+    edges[p.VerticesCount - 1] = &Edge{Vertices: [2]*Vertex{p.VerticesTail, p.VerticesHead}}
+
 	p.Edges = edges
 }
 
 func (p *Polygon) IsClicked(point f32.Point) bool {
-	numVertices := len(p.Vertices)
 	isInside := false
 
-	for i, j := 0, numVertices-1; i < numVertices; i++ {
-		vi, vj := p.Vertices[i].Point, p.Vertices[j].Point
+    for _, edge := range p.Edges {
+		vi, vj := edge.Vertices[0].Point, edge.Vertices[1].Point
 
 		if (vi.Y > point.Y) != (vj.Y > point.Y) &&
 			point.X < (vj.X-vi.X)*(point.Y-vi.Y)/(vj.Y-vi.Y)+vi.X {
 			isInside = !isInside
 		}
-
-		j = i
 	}
 
 	return isInside
 }
 
 func (p *Polygon) Layout(gtx *layout.Context) {
-	drawPolygonFromVertices(p.Vertices, gtx.Ops, &p.Color)
+	drawPolygonFromVertices(p.VerticesHead, gtx.Ops, &p.Color)
 }
 
-func drawPolygonFromVertices(v []*Vertex, ops *op.Ops, color *color.NRGBA) {
-	path := getPathFromVertices(v, ops, *color)
+func (p *Polygon) AppendVertexAfter(v *Vertex, point f32.Point) {
+    if v.next == nil {
+        next := p.VerticesHead
+        newVertex := &Vertex{next: next, Point: point}
+        next.previous = newVertex
+        p.VerticesHead = newVertex
+    } else {
+        next := v.next
+        newVertex := &Vertex{previous: v, next: next, Point: point}
+        v.next = newVertex
+        next.previous = newVertex
+    }
+    p.VerticesCount += 1
+}
+
+func (p *Polygon) DestroyVertex(v *Vertex) {
+    prev := v.previous
+    next := v.next
+
+    if prev == nil {
+        p.VerticesHead = next
+        next.previous = nil
+    } else if next == nil {
+        p.VerticesTail = prev
+        prev.next = nil
+    } else {
+        prev.next = next
+        next.previous = prev
+    }
+
+    p.VerticesCount -= 1
+}
+
+func drawPolygonFromVertices(head *Vertex, ops *op.Ops, color *color.NRGBA) {
+	path := getPathFromVertices(head, ops, *color)
 	path.Close()
 	fullPath := path.End()
 

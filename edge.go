@@ -33,8 +33,8 @@ func (e *Edge) MoveBy(x float32, y float32, gtx *layout.Context) {
 
 func (e *Edge) SetConstraint(c EdgeConstraint) {
     if c != None &&
-        (e.Vertices[0].ConstraintBefore != None ||
-         e.Vertices[1].ConstraintAfter != None) {
+        (e.Vertices[0].ConstraintBefore == c ||
+         e.Vertices[1].ConstraintAfter == c) {
        return 
     }
 

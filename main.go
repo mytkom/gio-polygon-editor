@@ -105,10 +105,9 @@ func handleGlobalEvents(gtx *layout.Context) {
             case "A":
                 if selectedEdge != nil {
                     e := selectedEdge.getEdge().GetMiddlePoint()
+                    prev := selectedEdge.getEdge().Vertices[0]
                     polygon := selectedEdge.Polygon
-                    index := (selectedEdge.EdgeIndex + 1) % len(polygon.Vertices)
-                    polygon.Vertices = append(polygon.Vertices[:index+1], polygon.Vertices[index:]...)
-                    polygon.Vertices[index] = &Vertex{Point: e}
+                    polygon.AppendVertexAfter(prev, e)
                     polygon.CreateEdges()
                     selected = nil
                     selectedEdge = nil
@@ -150,14 +149,16 @@ func handleGlobalEvents(gtx *layout.Context) {
                 selectedEdge = nil
                 for _, polygon := range polygons {
                     // Handle vertex click
-                    for i, vertex := range polygon.Vertices {
+                    vertex := polygon.VerticesHead
+                    for i := 0; vertex != nil; i += 1 {
                         if vertex.IsClicked(x.Position) {
-                            selected = &PolygonVertex{Polygon: polygon, VertexIndex: i}
+                            selected = &PolygonVertex{Polygon: polygon, Vertex: vertex}
                             selectedDragPosition = x.Position
                             selectedDragId = x.PointerID
                             StopEventsBelow()
                             return
                         }
+                        vertex = vertex.next
                     }
 
                     // Handle edge click

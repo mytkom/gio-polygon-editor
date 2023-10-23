@@ -27,6 +27,8 @@ type Vertex struct {
     Hovered bool
     ConstraintBefore EdgeConstraint
     ConstraintAfter EdgeConstraint
+    next *Vertex
+    previous *Vertex
 }
 
 func (v *Vertex) Layout(ops *op.Ops, c color.NRGBA) {
