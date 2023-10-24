@@ -53,21 +53,8 @@ func (pe *PolygonEdge) Destroy() {
 
     e := pe.getEdge()
     v := e.Vertices[0]
-    next := v.next
-    prev := v.previous
-    if next == nil {
-        next = pe.Polygon.VerticesHead
-        prev.next = nil
-    } else if prev == nil {
-        pe.Polygon.VerticesHead = next
-        next.previous = nil
-    } else {
-        prev.next = next 
-        next.previous = prev
-    }
-    
-    next.Point = e.GetMiddlePoint()
-    pe.Polygon.VerticesCount -= 1
+    pe.Polygon.DestroyVertex(v)
+    v.next.Point = e.GetMiddlePoint()
 
     pe.Polygon.CreateEdges()
 }
@@ -110,13 +97,13 @@ func (p *Polygon) Destroy() {
 }
 
 func (p *Polygon) HighLight(gtx *layout.Context) {
-    drawPolygonFromVertices(p.VerticesHead, gtx.Ops, &highLightColor)
+    drawPolygonFromVertices(p.VerticesHead, p.VerticesCount, gtx.Ops, &highLightColor)
 }
 
 func (p *Polygon) MoveBy(x float32, y float32, gtx *layout.Context) {
     vertex := p.VerticesHead
 
-    for vertex != nil {
+    for i := 0; i < p.VerticesCount; i++ {
         newX := vertex.Point.X + x
         newY := vertex.Point.Y + y
         if !isPointInWindow(newX, newY, gtx) {
@@ -125,8 +112,7 @@ func (p *Polygon) MoveBy(x float32, y float32, gtx *layout.Context) {
         vertex = vertex.next
     }
 
-    vertex = p.VerticesHead
-    for vertex != nil {
+    for i := 0; i < p.VerticesCount; i++ {
 		vertex.Point.X += x
 		vertex.Point.Y += y
         vertex = vertex.next

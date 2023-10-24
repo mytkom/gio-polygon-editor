@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gk1-project1/painter"
 	"image/color"
 	"log"
 	"os"
@@ -13,11 +14,13 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
 )
 
 var brushColor = color.NRGBA{R: 255, A: 255}
 var backgroundColor = color.NRGBA{A:255}
-var lineWidth = 4
+var applicationPainter painter.Painter = &painter.GioPainter{}
+var lineWidth = unit.Dp(4)
 var eventsStoppedInFrame = false
 
 var polygonBuilder *PolygonBuilder
@@ -66,17 +69,14 @@ func run(w *app.Window) error {
 
 func handleFrameEvents(gtx *layout.Context) {
     drawBackground(gtx.Ops)
-    polygonBuilder.HandleEvents(gtx)
-    handleGlobalEvents(gtx)
+    handleEvents(gtx)
 
     polygonBuilder.Layout(gtx)
-    registerGlobalEvents(gtx)
+    registerEvents(gtx)
     drawPolygons(gtx)
     if selected != nil {
         selected.HighLight(gtx)
     }
-
-    polygonBuilder.RegisterEvents(gtx)
 }
 
 func drawBackground(ops *op.Ops) {
@@ -94,7 +94,7 @@ func StopEventsBelow() {
     eventsStoppedInFrame = true 
 }
 
-func handleGlobalEvents(gtx *layout.Context) {
+func handleEvents(gtx *layout.Context) {
     for _, e := range gtx.Events(&globalEventTag) {
         if x, ok := e.(key.Event); ok {
             if x.State != key.Press {
@@ -122,6 +122,12 @@ func handleGlobalEvents(gtx *layout.Context) {
                     selected = nil
                     StopEventsBelow()
                 }
+            case "P":
+                if applicationPainter.Type() == painter.Gio {
+                    applicationPainter = &painter.BresenhamPainter{}
+                } else {
+                    applicationPainter = &painter.GioPainter{}
+                }
             case "N":
                 polygonBuilder.Active = true
             case "H":
@@ -136,7 +142,7 @@ func handleGlobalEvents(gtx *layout.Context) {
         }
         if x, ok := e.(pointer.Event); ok {
             // handle PolygonBuilder global Events
-            polygonBuilder.handleAddVertexEvent(&x)
+            polygonBuilder.HandleEvents(&x)
 
             if eventsStoppedInFrame {
                 break
@@ -150,7 +156,7 @@ func handleGlobalEvents(gtx *layout.Context) {
                 for _, polygon := range polygons {
                     // Handle vertex click
                     vertex := polygon.VerticesHead
-                    for i := 0; vertex != nil; i += 1 {
+                    for i := 0; i < polygon.VerticesCount; i++ {
                         if vertex.IsClicked(x.Position) {
                             selected = &PolygonVertex{Polygon: polygon, Vertex: vertex}
                             selectedDragPosition = x.Position
@@ -196,10 +202,10 @@ func handleGlobalEvents(gtx *layout.Context) {
     }
 }
 
-func registerGlobalEvents(gtx *layout.Context) {
+func registerEvents(gtx *layout.Context) {
     key.InputOp{
         Tag: &globalEventTag,
-        Keys: "A|C|D|N|H|V",
+        Keys: "A|C|D|P|N|H|V",
     }.Add(gtx.Ops)
 
     pointer.InputOp{

@@ -25,8 +25,7 @@ const(
 type Vertex struct {
     Point f32.Point
     Hovered bool
-    ConstraintBefore EdgeConstraint
-    ConstraintAfter EdgeConstraint
+    EdgeConstraint EdgeConstraint
     next *Vertex
     previous *Vertex
 }
@@ -38,14 +37,22 @@ func (v *Vertex) Layout(ops *op.Ops, c color.NRGBA) {
 
 func (v *Vertex) MoveBy(x float32, y float32, gtx *layout.Context) {
     if !isPointInWindow(v.Point.X + x, v.Point.Y + y, gtx) {
-       return 
+        return 
     }
 
-    if v.ConstraintAfter != Vertical && v.ConstraintBefore != Vertical {
-        v.Point.X += x   
-    } 
-    if v.ConstraintAfter != Horizontal && v.ConstraintBefore != Horizontal {
-        v.Point.Y += y
+    v.Point.X += x
+    v.Point.Y += y
+
+    if v.EdgeConstraint == Vertical {
+        v.next.Point.X += x
+    } else if v.EdgeConstraint == Horizontal {
+        v.next.Point.Y += y
+    }
+
+    if v.previous.EdgeConstraint == Vertical {
+        v.previous.Point.X += x
+    } else if v.previous.EdgeConstraint == Horizontal {
+        v.previous.Point.Y += y
     }
 }
 

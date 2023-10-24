@@ -21,20 +21,28 @@ func (e *Edge) MoveBy(x float32, y float32, gtx *layout.Context) {
     v1 := e.Vertices[0]
     v2 := e.Vertices[1]
 
-    if v2.ConstraintAfter != Vertical && v1.ConstraintBefore != Vertical {
-        v1.Point.X += x
-        v2.Point.X += x
+    v1.Point.X += x
+    v2.Point.X += x
+    v1.Point.Y += y
+    v2.Point.Y += y
+
+    if v1.previous.EdgeConstraint == Vertical {
+        v1.previous.Point.X += x
+    } else if v1.previous.EdgeConstraint == Horizontal {
+        v1.previous.Point.Y += y
     }
-    if v2.ConstraintAfter != Horizontal && v1.ConstraintBefore != Horizontal {
-        v1.Point.Y += y
-        v2.Point.Y += y
-    }
+
+    if v2.EdgeConstraint == Vertical {
+        v2.next.Point.X += x
+    } else if v2.EdgeConstraint == Horizontal {
+        v2.next.Point.Y += y
+    } 
 }
 
 func (e *Edge) SetConstraint(c EdgeConstraint) {
     if c != None &&
-        (e.Vertices[0].ConstraintBefore == c ||
-         e.Vertices[1].ConstraintAfter == c) {
+        (e.Vertices[0].previous.EdgeConstraint == c ||
+         e.Vertices[1].EdgeConstraint == c) {
        return 
     }
 
@@ -47,8 +55,7 @@ func (e *Edge) SetConstraint(c EdgeConstraint) {
         e.Vertices[1].Point.X = mid.X
     }
 
-    e.Vertices[0].ConstraintAfter = c
-    e.Vertices[1].ConstraintBefore = c
+    e.Vertices[0].EdgeConstraint = c
 }
 
 func (e *Edge) IsClicked(point *f32.Point) bool {
