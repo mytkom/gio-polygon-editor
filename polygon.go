@@ -25,10 +25,36 @@ func CreatePolygon(head *Vertex, tail *Vertex, count int, color color.NRGBA) {
 	}
 	polygon.CreateEdges()
 
+    if !polygon.IsClockwise() {
+        current := head
+        for i := 0; i < count - 1; i++ {
+            current.previous.next = current.previous.previous
+            current.previous.previous = current
+            current = current.next
+        }
+        current.next.next = current.next.previous
+        current.next.previous = current
+    }
+
 	polygons = append(
 		polygons,
 		polygon,
 	)
+}
+
+func (p *Polygon) IsClockwise() bool {
+    current := p.VerticesHead
+    sum := float32(0.0)
+    for i := 0; i < p.VerticesCount; i++ {
+        next := current.next
+        sum += (next.Point.X - current.Point.X) * (next.Point.Y + current.Point.Y)
+        current = next
+    }
+
+    if sum < 0 {
+        return true
+    }
+     return false
 }
 
 func (p *Polygon) CreateEdges() {

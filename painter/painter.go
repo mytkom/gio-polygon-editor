@@ -42,20 +42,22 @@ func (gp *GioPainter) Type() PainterType {
 type BresenhamPainter struct {}
 
 func (bp *BresenhamPainter) DrawLine(a f32.Point, b f32.Point, color color.NRGBA, ops *op.Ops) {
-    dx := math.Abs(float64(b.X - a.X))
-    dy := -math.Abs(float64(b.Y - a.Y))
+    s := a.Round()
+    d := b.Round()
+    dx := math.Abs(float64(d.X - s.X))
+    dy := -math.Abs(float64(d.Y - s.Y))
     sx := 1.0
-    if a.X > b.X {
+    if s.X > d.X {
         sx = -1.0
     }
     sy := 1.0
-    if a.Y > b.Y {
+    if s.Y > d.Y {
         sy = -1.0
     }
     err := dx + dy
 
-    x := int(a.X)
-    y := int(a.Y)
+    x := int(s.X)
+    y := int(s.Y)
 
     for {
         offset := op.Offset(image.Pt(x, y)).Push(ops)
@@ -68,7 +70,7 @@ func (bp *BresenhamPainter) DrawLine(a f32.Point, b f32.Point, color color.NRGBA
         rect.Pop()
         offset.Pop()
 
-        if x == int(b.X) && y == int(b.Y) {
+        if x == int(d.X) && y == int(d.Y) {
             break
         }
 
