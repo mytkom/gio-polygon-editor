@@ -144,12 +144,6 @@ func handleEvents(gtx *layout.Context) {
                     selected = nil
                     StopEventsBelow()
                 }
-            case "P":
-                if applicationPainter.Type() == painter.Gio {
-                    applicationPainter = &painter.BresenhamPainter{}
-                } else {
-                    applicationPainter = &painter.GioPainter{}
-                }
             case "N":
                 polygonBuilder.Active = true
             case "H":
@@ -270,7 +264,7 @@ func handleEvents(gtx *layout.Context) {
 func registerEvents(gtx *layout.Context) {
     key.InputOp{
         Tag: &globalEventTag,
-        Keys: "A|C|D|P|N|H|V|O|+|-",
+        Keys: "A|C|D|N|H|V|O|+|-",
     }.Add(gtx.Ops)
 
     pointer.InputOp{
