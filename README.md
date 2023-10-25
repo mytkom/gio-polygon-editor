@@ -2,11 +2,25 @@
 Polygon Editor written in Go using Gio library (University Project)
 
 # Installation
-TODO
+### Regular
+If you are on Windows/Linux executing `build.exe` should be enough.
+
+If something is not working or you are using MacOS, try compiling it yourself:
+### Development
+1. (Download and Install Golang)[https://go.dev/doc/install]
+2. execute `go install gioui.org/cmd/gogio@latest`.
+3. execute `go run .`, in workdir.
+
+If it is not working after these steps, follow (official Gio installation guide)[https://gioui.org/doc/install], you may be missing some dependencies, needed for your OS.
 
 # Functional Keys
 `N` (*N*ew) - enables polygon builder, clicking on canvas would create a vertex for new polygon, clicking on the first one created closes it and disables builder. 
 `D` (*D*elete) - if polygon/edge/vertex is selected it removes it.
+
+### Offseted Polygon
+`O` (*O*ffset) - toggles offsetted polygon
+`+` - make offset width bigger
+`-` - make offset width smaller
 
 ### When edge is selected:
 `V` (*V*ertical) - sets a constraint on edge, so it have to be vertical

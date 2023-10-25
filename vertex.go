@@ -12,7 +12,7 @@ import (
 )
 
 const vertexRadius = 5
-const vertexHoverRadius = vertexRadius + 3
+const vertexHoverRadius = vertexRadius + 1
 
 type EdgeConstraint int
 
@@ -28,6 +28,7 @@ type Vertex struct {
     EdgeConstraint EdgeConstraint
     next *Vertex
     previous *Vertex
+    offsetVector f32.Point
 }
 
 func (v *Vertex) Layout(ops *op.Ops, c color.NRGBA) {

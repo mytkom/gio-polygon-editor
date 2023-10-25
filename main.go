@@ -14,29 +14,37 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/paint"
-	"gioui.org/unit"
+	"gioui.org/widget"
+	"gioui.org/widget/material"
 )
 
-var brushColor = color.NRGBA{R: 255, A: 255}
+var polygonColor = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+var builderColor = color.NRGBA{R: 255, A: 255}
+var constraintColor = color.NRGBA{G: 255, A: 255}
+var offsetColor = color.NRGBA{R: 178, G: 255, B:255, A: 255}
 var backgroundColor = color.NRGBA{A:255}
 var applicationPainter painter.Painter = &painter.GioPainter{}
-var lineWidth = unit.Dp(4)
 var eventsStoppedInFrame = false
+var offsetPolygonFeatureEnabled = false
+var polygonOffset = 15
 
 var polygonBuilder *PolygonBuilder
 var polygons []*Polygon
 var globalEventTag bool
 
+var hovered Selectable
 var selected Selectable
 var selectedDragId pointer.ID
 var selectedDragPosition f32.Point
 var selectedEdge *PolygonEdge
 
+var painterRadioButton widget.Enum =  widget.Enum{Value: "Gio"}
+
 func main() {
     go func() {
         w := app.NewWindow(
             app.Title("Hexitor"),
-            app.Size(1920, 1080),
+            app.Size(800, 600),
         )
         err := run(w)
         if err != nil {
@@ -49,7 +57,9 @@ func main() {
 
 func run(w *app.Window) error {
     var ops op.Ops
-    polygonBuilder = &PolygonBuilder{Color: brushColor}
+    th := material.NewTheme()
+    polygonBuilder = &PolygonBuilder{Color: builderColor}
+    loadDefaultScene()
     for {
         e := <-w.Events()
         switch e := e.(type) {
@@ -58,7 +68,7 @@ func run(w *app.Window) error {
         case system.FrameEvent:
             gtx := layout.NewContext(&ops, e)
 
-            handleFrameEvents(&gtx)
+            handleFrameEvents(&gtx, th)
 
             e.Frame(gtx.Ops)
             eventsStoppedInFrame = false
@@ -67,13 +77,17 @@ func run(w *app.Window) error {
 
 }
 
-func handleFrameEvents(gtx *layout.Context) {
+func handleFrameEvents(gtx *layout.Context, th *material.Theme) {
     drawBackground(gtx.Ops)
     handleEvents(gtx)
-
     polygonBuilder.Layout(gtx)
     registerEvents(gtx)
+    DrawControlPanel(gtx, th)
     drawPolygons(gtx)
+    if hovered != nil {
+        hovered.HighLight(gtx)
+    }
+
     if selected != nil {
         selected.HighLight(gtx)
     }
@@ -95,6 +109,14 @@ func StopEventsBelow() {
 }
 
 func handleEvents(gtx *layout.Context) {
+    if painterRadioButton.Changed() {
+        if painterRadioButton.Value == "Gio" {
+            applicationPainter = &painter.GioPainter{}
+        } else {
+            applicationPainter = &painter.BresenhamPainter{}
+        }
+    }
+
     for _, e := range gtx.Events(&globalEventTag) {
         if x, ok := e.(key.Event); ok {
             if x.State != key.Press {
@@ -138,7 +160,21 @@ func handleEvents(gtx *layout.Context) {
                 if selectedEdge != nil {
                     selectedEdge.getEdge().SetConstraint(Vertical)
                 }
-            }
+            case "O":
+                if offsetPolygonFeatureEnabled {
+                    offsetPolygonFeatureEnabled = false
+                } else {
+                    offsetPolygonFeatureEnabled = true
+                }
+            case "+":
+                if offsetPolygonFeatureEnabled {
+                   polygonOffset++ 
+                }
+            case "-":
+                if offsetPolygonFeatureEnabled && polygonOffset > 1 {
+                    polygonOffset--
+                }
+            }   
         }
         if x, ok := e.(pointer.Event); ok {
             // handle PolygonBuilder global Events
@@ -197,6 +233,35 @@ func handleEvents(gtx *layout.Context) {
                     selectedDragPosition = pos
                     StopEventsBelow()
                 }
+            case pointer.Move:
+                hovered = nil
+                for _, polygon := range polygons {
+                    // Handle vertex hover
+                    vertex := polygon.VerticesHead
+                    for i := 0; i < polygon.VerticesCount; i++ {
+                        if vertex.IsClicked(x.Position) {
+                            hovered = &PolygonVertex{Polygon: polygon, Vertex: vertex}
+                            return
+                        }
+                        vertex = vertex.next
+                    }
+
+                    // Handle edge hover
+                    for i, edge := range polygon.Edges {
+                        if edge.IsClicked(&x.Position) {
+                            pe := &PolygonEdge{Polygon: polygon, EdgeIndex: i}
+                            hovered = pe
+                            return
+                        }
+                    }
+
+                    // Handle polygon hover
+                    if polygon.IsClicked(x.Position) {
+                        hovered = polygon
+                        return
+                    }
+                }
+
             }
         }
     }
@@ -205,7 +270,7 @@ func handleEvents(gtx *layout.Context) {
 func registerEvents(gtx *layout.Context) {
     key.InputOp{
         Tag: &globalEventTag,
-        Keys: "A|C|D|P|N|H|V",
+        Keys: "A|C|D|P|N|H|V|O|+|-",
     }.Add(gtx.Ops)
 
     pointer.InputOp{
@@ -214,3 +279,28 @@ func registerEvents(gtx *layout.Context) {
     }.Add(gtx.Ops)
 }
 
+func DrawControlPanel(gtx *layout.Context, th *material.Theme) {
+    layout.Flex{Axis: layout.Axis(Vertical), Spacing: layout.SpaceStart}.Layout(
+        *gtx,
+        layout.Rigid(
+            func(gtx layout.Context) layout.Dimensions {
+                return layout.Flex{Spacing: layout.SpaceStart}.Layout(gtx,
+                layout.Rigid(
+                    func(gtx layout.Context) layout.Dimensions {
+                        btn := material.RadioButton(th, &painterRadioButton, "Gio", "Gio")
+                        btn.Color = polygonColor
+                        return btn.Layout(gtx)
+                    },
+                ),
+                layout.Rigid(
+                    func(gtx layout.Context) layout.Dimensions {
+                        btn := material.RadioButton(th, &painterRadioButton, "Bresenham", "Bresenham")
+                        btn.Color = polygonColor
+                        return btn.Layout(gtx)
+                    },
+                ),
+            )
+            },
+        ),
+    )
+}

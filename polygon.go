@@ -2,9 +2,11 @@ package main
 
 import (
 	"image/color"
+	"math"
 
 	"gioui.org/f32"
 	"gioui.org/layout"
+	"gioui.org/op"
 )
 
 type Polygon struct {
@@ -24,6 +26,7 @@ func CreatePolygon(head *Vertex, tail *Vertex, count int, color color.NRGBA) {
 		Color:    color,
 	}
 	polygon.CreateEdges()
+    polygon.CalculateOffsetVectors()
 
     if !polygon.IsClockwise() {
         current := head
@@ -54,7 +57,7 @@ func (p *Polygon) IsClockwise() bool {
     if sum < 0 {
         return true
     }
-     return false
+    return false
 }
 
 func (p *Polygon) CreateEdges() {
@@ -87,6 +90,47 @@ func (p *Polygon) IsClicked(point f32.Point) bool {
 
 func (p *Polygon) Layout(gtx *layout.Context) {
 	drawPolygonFromVertices(p.VerticesHead, p.VerticesCount, gtx.Ops, &p.Color)
+
+    if offsetPolygonFeatureEnabled {
+        p.DrawOffsetPolygon(gtx.Ops)
+    }
+}
+
+func (p *Polygon) DrawOffsetPolygon(ops *op.Ops) {
+    current := p.VerticesHead
+    for i := 0; i < p.VerticesCount; i++ {
+        vertex := Vertex{Point: current.Point.Add(current.offsetVector.Mul(float32(polygonOffset)))}
+        vertex.Layout(ops, offsetColor)
+        if current.next == nil {
+            break
+        }
+        applicationPainter.DrawLine(
+            current.Point.Add(current.offsetVector.Mul(float32(polygonOffset))),
+            current.next.Point.Add(current.next.offsetVector.Mul(float32(polygonOffset))),
+            offsetColor,
+            ops,
+        )
+        current = current.next
+    }
+}
+
+func (p *Polygon) CalculateOffsetVectors() {
+    current := p.VerticesHead
+    for i := 0; i < p.VerticesCount; i++ {
+        sub := current.next.Point.Sub(current.Point)
+        n1 := normalizeVector(f32.Point{X: sub.Y, Y: -sub.X})
+        sub = current.Point.Sub(current.previous.Point)
+        n2 := normalizeVector(f32.Point{X: sub.Y, Y: -sub.X})
+        vector := n1.Add(n2)
+        divider := float32(math.Sqrt(float64((1.0 + n1.X * n2.X + n1.Y * n2.Y)/2.0)))
+        current.offsetVector = normalizeVector(vector).Div(divider)
+        current = current.next
+    }
+}
+
+func normalizeVector(vector f32.Point) f32.Point {
+    div := float32(math.Sqrt(float64(vector.X*vector.X + vector.Y*vector.Y)))
+    return vector.Div(div)
 }
 
 func (p *Polygon) AppendVertexAfter(v *Vertex, point f32.Point) {
@@ -95,6 +139,9 @@ func (p *Polygon) AppendVertexAfter(v *Vertex, point f32.Point) {
     v.next = newVertex
     next.previous = newVertex
     p.VerticesCount++
+    v.EdgeConstraint = None
+
+    p.CalculateOffsetVectors()
 }
 
 func (p *Polygon) DestroyVertex(v *Vertex) {
@@ -107,6 +154,8 @@ func (p *Polygon) DestroyVertex(v *Vertex) {
 
     prev.next = next
     next.previous = prev
+    prev.EdgeConstraint = None
 
     p.VerticesCount--
+    p.CalculateOffsetVectors()
 }

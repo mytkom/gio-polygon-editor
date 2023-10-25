@@ -29,15 +29,17 @@ func (pv *PolygonVertex) Destroy() {
 
     pv.Polygon.DestroyVertex(pv.Vertex)
     pv.Polygon.CreateEdges()
+    pv.Polygon.CalculateOffsetVectors()
 }
 
 func (pv *PolygonVertex) HighLight(gtx *layout.Context) {
-    circle := pv.Vertex.GetHoverEllipse().Op(gtx.Ops)
+    circle := pv.Vertex.GetHoverEllipse().Op(gtx.Ops)   
     paint.FillShape(gtx.Ops, highLightColor, circle)
 }
 
 func (pv *PolygonVertex) MoveBy(x float32, y float32, gtx *layout.Context) {
     pv.Vertex.MoveBy(x, y, gtx)
+    pv.Polygon.CalculateOffsetVectors()
 }
 
 type PolygonEdge struct {
@@ -57,6 +59,7 @@ func (pe *PolygonEdge) Destroy() {
     v.next.Point = e.GetMiddlePoint()
 
     pe.Polygon.CreateEdges()
+    pe.Polygon.CalculateOffsetVectors()
 }
 
 func (pe *PolygonEdge) HighLight(gtx *layout.Context) {
@@ -70,12 +73,13 @@ func (pe *PolygonEdge) HighLight(gtx *layout.Context) {
     paint.FillShape(
         gtx.Ops,
         highLightColor,
-        clip.Stroke{Path: path.End(), Width: float32(lineWidth + 1.0)}.Op(),
+        clip.Stroke{Path: path.End(), Width: float32(edgeHoverWidth)}.Op(),
     )
 }
 
 func (pe *PolygonEdge) MoveBy(x float32, y float32, gtx *layout.Context) {
     pe.getEdge().MoveBy(x, y, gtx)
+    pe.Polygon.CalculateOffsetVectors()
 }
 
 func (pe *PolygonEdge) getEdge() *Edge {
@@ -98,6 +102,22 @@ func (p *Polygon) Destroy() {
 
 func (p *Polygon) HighLight(gtx *layout.Context) {
     drawPolygonFromVertices(p.VerticesHead, p.VerticesCount, gtx.Ops, &highLightColor)
+
+    var path clip.Path
+    path.Begin(gtx.Ops)
+    current := p.VerticesHead
+    path.MoveTo(current.Point)
+    for i := 1; i < p.VerticesCount; i++ {
+        current = current.next
+        path.LineTo(current.Point)
+    }
+    path.Close()
+    
+    paint.FillShape(
+        gtx.Ops,
+        HoverizeColor(highLightColor),
+        clip.Outline{Path: path.End()}.Op(),
+    )
 }
 
 func (p *Polygon) MoveBy(x float32, y float32, gtx *layout.Context) {

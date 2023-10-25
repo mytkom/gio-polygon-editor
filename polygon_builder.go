@@ -59,7 +59,7 @@ func (pb *PolygonBuilder) handleClosingVertexEvent(x *pointer.Event) {
         pb.verticesHead,
         pb.verticesTail,
         pb.vertexCount,
-        color.NRGBA{R: 255, G: 255, B: 255, A: 255},
+        polygonColor,
     ) 
     pb.verticesHead = nil
     pb.verticesTail = nil
@@ -100,6 +100,23 @@ func drawPolygonFromVertices(head *Vertex, count int, ops *op.Ops, color *color.
             break
         }
         applicationPainter.DrawLine(current.Point, current.next.Point, *color, ops)
+        middlePoint := current.Point.Add(current.next.Point).Div(2.0)
+        halfWidth := float32(edgeHoverWidth)
+        if current.EdgeConstraint == Vertical {
+            applicationPainter.DrawLine(
+                f32.Point{X: middlePoint.X - halfWidth, Y: middlePoint.Y},
+                f32.Point{X: middlePoint.X + halfWidth, Y: middlePoint.Y},
+                constraintColor,
+                ops,
+            )
+        } else if current.EdgeConstraint == Horizontal {
+            applicationPainter.DrawLine(
+                f32.Point{X: middlePoint.X, Y: middlePoint.Y - halfWidth},
+                f32.Point{X: middlePoint.X, Y: middlePoint.Y + halfWidth},
+                constraintColor,
+                ops,
+            )
+        }
         current = current.next
     }
 }

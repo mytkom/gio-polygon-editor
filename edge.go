@@ -7,6 +7,8 @@ import (
 	"gioui.org/layout"
 )
 
+var edgeHoverWidth = 3.0
+
 type Edge struct {
     Vertices [2]*Vertex
 }
