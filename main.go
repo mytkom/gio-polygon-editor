@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"gk1-project1/painter"
 	"image/color"
 	"log"
@@ -18,6 +19,7 @@ import (
 	"gioui.org/widget/material"
 )
 
+var saveFile = "scene.json"
 var polygonColor = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
 var builderColor = color.NRGBA{R: 255, A: 255}
 var constraintColor = color.NRGBA{G: 255, A: 255}
@@ -110,10 +112,13 @@ func StopEventsBelow() {
 
 func handleEvents(gtx *layout.Context) {
     if painterRadioButton.Changed() {
-        if painterRadioButton.Value == "Gio" {
+        switch painterRadioButton.Value {
+        case "Gio":
             applicationPainter = &painter.GioPainter{}
-        } else {
+        case "Bersenham":
             applicationPainter = &painter.BresenhamPainter{}
+        case "WU":
+            applicationPainter = &painter.WUPainter{}
         }
     }
 
@@ -168,6 +173,18 @@ func handleEvents(gtx *layout.Context) {
                 if offsetPolygonFeatureEnabled && polygonOffset > 1 {
                     polygonOffset--
                 }
+            case "S":
+                file, e := json.MarshalIndent(polygons, "", " ")
+                if e != nil {
+                    break
+                }
+                e = os.WriteFile(saveFile, file, 0644)
+            case "L":
+                file, e := os.ReadFile(saveFile)
+                if e != nil {
+                    break
+                }
+                e = json.Unmarshal(file, &polygons)
             }   
         }
         if x, ok := e.(pointer.Event); ok {
@@ -264,7 +281,7 @@ func handleEvents(gtx *layout.Context) {
 func registerEvents(gtx *layout.Context) {
     key.InputOp{
         Tag: &globalEventTag,
-        Keys: "A|C|D|N|H|V|O|+|-",
+        Keys: "A|C|D|N|H|V|O|+|-|S|L",
     }.Add(gtx.Ops)
 
     pointer.InputOp{
@@ -289,6 +306,13 @@ func DrawControlPanel(gtx *layout.Context, th *material.Theme) {
                 layout.Rigid(
                     func(gtx layout.Context) layout.Dimensions {
                         btn := material.RadioButton(th, &painterRadioButton, "Bresenham", "Bresenham")
+                        btn.Color = polygonColor
+                        return btn.Layout(gtx)
+                    },
+                ),
+                layout.Rigid(
+                    func(gtx layout.Context) layout.Dimensions {
+                        btn := material.RadioButton(th, &painterRadioButton, "WU", "WU")
                         btn.Color = polygonColor
                         return btn.Layout(gtx)
                     },

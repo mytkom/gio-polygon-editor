@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"image/color"
 	"math"
 
@@ -11,8 +12,8 @@ import (
 
 type Polygon struct {
 	VerticesHead *Vertex
-    VerticesCount int
-	Color    color.NRGBA
+    VerticesCount int `json:"verticesCount"`
+    Color    color.NRGBA `json:"color"`
 	Edges    []*Edge
 }
 
@@ -131,6 +132,60 @@ func (p *Polygon) CalculateOffsetVectors() {
 func normalizeVector(vector f32.Point) f32.Point {
     div := float32(math.Sqrt(float64(vector.X*vector.X + vector.Y*vector.Y)))
     return vector.Div(div)
+}
+
+func (p *Polygon) MarshalJSON() ([]byte, error) {
+    vertices := make([]*Vertex, 0)
+    current := p.VerticesHead
+    for i := 0; i < p.VerticesCount; i++ {
+        vertices = append(vertices, current)
+        current = current.next
+    }
+
+    b, e := json.Marshal(vertices)
+    if e != nil {
+        return nil, e
+    }
+
+    return b, nil
+}
+
+func (p *Polygon) UnmarshalJSON(b []byte) error {
+    var vertices []*Vertex
+    e := json.Unmarshal(b, &vertices)
+    if e != nil {
+        return e
+    }
+
+    head := vertices[0]
+    tail := vertices[len(vertices) - 1]
+    for i := 0; i < len(vertices) - 1; i++ {
+        vertices[i].next = vertices[i + 1] 
+        vertices[i + 1].previous = vertices[i]
+    }
+
+    tail.next = head
+    head.previous = tail
+
+    p.VerticesHead = head
+    p.VerticesCount = len(vertices)
+    p.Color = polygonColor
+
+	p.CreateEdges()
+    p.CalculateOffsetVectors()
+
+    if !p.IsClockwise() {
+        current := p.VerticesHead
+        for i := 0; i < p.VerticesCount - 1; i++ {
+            current.previous.next = current.previous.previous
+            current.previous.previous = current
+            current = current.next
+        }
+        current.next.next = current.next.previous
+        current.next.previous = current
+    }
+
+    return nil
 }
 
 func (p *Polygon) AppendVertexAfter(v *Vertex, point f32.Point) {
