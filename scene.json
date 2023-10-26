@@ -1,0 +1,102 @@
+[
+ [
+  {
+   "Point": {
+    "X": 100,
+    "Y": 100
+   },
+   "Hovered": false,
+   "EdgeConstraint": 2
+  },
+  {
+   "Point": {
+    "X": 200,
+    "Y": 100
+   },
+   "Hovered": false,
+   "EdgeConstraint": 1
+  },
+  {
+   "Point": {
+    "X": 200,
+    "Y": 200
+   },
+   "Hovered": false,
+   "EdgeConstraint": 2
+  },
+  {
+   "Point": {
+    "X": 300,
+    "Y": 200
+   },
+   "Hovered": false,
+   "EdgeConstraint": 0
+  },
+  {
+   "Point": {
+    "X": 350,
+    "Y": 250
+   },
+   "Hovered": false,
+   "EdgeConstraint": 2
+  },
+  {
+   "Point": {
+    "X": 100,
+    "Y": 250
+   },
+   "Hovered": false,
+   "EdgeConstraint": 1
+  }
+ ],
+ [
+  {
+   "Point": {
+    "X": 924.14594,
+    "Y": 446.00583
+   },
+   "Hovered": false,
+   "EdgeConstraint": 0
+  },
+  {
+   "Point": {
+    "X": 944.14594,
+    "Y": 466.00583
+   },
+   "Hovered": false,
+   "EdgeConstraint": 0
+  },
+  {
+   "Point": {
+    "X": 944.14594,
+    "Y": 506.00583
+   },
+   "Hovered": false,
+   "EdgeConstraint": 0
+  },
+  {
+   "Point": {
+    "X": 904.14594,
+    "Y": 546.00586
+   },
+   "Hovered": false,
+   "EdgeConstraint": 1
+  },
+  {
+   "Point": {
+    "X": 904.14594,
+    "Y": 496.00583
+   },
+   "Hovered": false,
+   "EdgeConstraint": 0
+  },
+  {
+   "Point": {
+    "X": 884.14594,
+    "Y": 446.00583
+   },
+   "Hovered": false,
+   "EdgeConstraint": 0
+  }
+ ]
+]
