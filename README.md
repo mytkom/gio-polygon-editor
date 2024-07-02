@@ -22,8 +22,7 @@ If it is not working after these steps, follow (official Gio installation guide)
 - `V` (*V*ertical) - sets a constraint on edge, so it have to be vertical
 - `H` (*H*orizontal) - sets a constraint on edge, so it have to be horizontal
 - `C` (*C*lear) - unsets constraints on edge
-
-`A` (*A*dd vertex) - adds vertex in the middle of the selected edge
+- `A` (*A*dd vertex) - adds vertex in the middle of the selected edge
 
 ### Saving/Loading one scene
 - `S` (*S*ave) - saves current scene to "scene.json" file
