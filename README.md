@@ -2,10 +2,6 @@
 Polygon Editor written in Go using Gio library (University Project)
 
 # Installation
-### Regular
-If you are on Windows/Linux executing `build.exe` should be enough.
-
-If something is not working or you are using MacOS, try compiling it yourself:
 ### Development
 1. (Download and Install Golang)[https://go.dev/doc/install]
 2. execute `go install gioui.org/cmd/gogio@latest`.
